@@ -1,0 +1,372 @@
+#game thread fuctions starts from here
+def initialGameThreadText(basicGameData, date, teamDict, dateTitle):
+    """
+    Variable basicGameData have live data
+    Variable date is today's date
+    Variable teamDict is the variable Dictionary at the top
+    Function beforeGamePost setups the body of the thread before game starts
+    and return body and title of the post
+    """
+    try:
+        nbaUrlBoxscore = ("http://www.nba.com/games/" + date + "/"
+                          + basicGameData["vTeam"]["triCode"]
+                          + basicGameData["hTeam"]["triCode"] + "#/boxscore")
+        nbaUrlPreview = ("http://www.nba.com/games/" + date + "/"
+                         + basicGameData["vTeam"]["triCode"]
+                         + basicGameData["hTeam"]["triCode"] + "#/preview")
+        nbaUrlPlayByPlay = ("http://www.nba.com/games/" + date + "/"
+                            + basicGameData["vTeam"]["triCode"]
+                            + basicGameData["hTeam"]["triCode"] + "#/matchup")
+        nbaUrlMatchup = ("http://www.nba.com/games/" + date + "/"
+                         + basicGameData["vTeam"]["triCode"]
+                         + basicGameData["hTeam"]["triCode"] + "#/pbp")
+        timeEasternRaw = basicGameData["startTimeEastern"]
+        timeOnlyEastern = timeEasternRaw[:5]
+        if timeOnlyEastern[:2].isdigit():
+            timeEasternHour = int(timeOnlyEastern[:2])
+            timeEasternMinute = int(timeOnlyEastern[3:])
+        else:
+            timeEasternHour = int(timeOnlyEastern[:1])
+            timeEasternMinute = int(timeOnlyEastern[2:])
+
+        if timeEasternMinute == 0:
+            timeMinuteFinal = 59
+            timeEasternHourFinal = timeEasternHour - 1
+        else:
+            timeMinuteFinal = timeEasternMinute - 1
+            timeEasternHourFinal = timeEasternHour
+        timeCentralHourFinal = timeEasternHourFinal - 1
+        timeMountainHourFinal = timeCentralHourFinal - 1
+        timePacificHourFinal = timeMountainHourFinal - 1
+
+        beforeGameBody = """##General Information
+    **TIME**     |**MEDIA**                            |**LOCATION**        |
+    :------------|:------------------------------------|:-------------------|
+    {0}:{4} PM Eastern |**Game Preview**: [NBA.com]({5}) | {9}               | 
+    {1}:{4} PM Central |**Game Matchup**: [NBA.com]({6}) | **Team Subreddits**|
+    {2}:{4} PM Mountain|**Play By Play**: [NBA.com]({7})| {10}          |
+    {3}:{4} PM Pacific |**Box Score**: [NBA.com]({8}) | {11}          |
+    -----
+
+[Reddit Stream](https://reddit-stream.com/comments/auto) (You must click this link from the comment page.)
+    """.format(
+            str(timeEasternHourFinal), str(timeCentralHourFinal),
+            str(timeMountainHourFinal), str(timePacificHourFinal),
+            str(timeMinuteFinal), nbaUrlPreview,
+            nbaUrlMatchup, nbaUrlPlayByPlay,
+            nbaUrlBoxscore, basicGameData["arena"]["name"],
+            teamDict[basicGameData["vTeam"]["triCode"]][3],
+            teamDict[basicGameData["hTeam"]["triCode"]][3])
+
+        title = ("GAME THREAD: " + teamDict[basicGameData["vTeam"]["triCode"]][0]
+                 + " (" + basicGameData["vTeam"]["win"] + "-"
+                 + basicGameData["vTeam"]["loss"] + ") @ "
+                 + teamDict[basicGameData["hTeam"]["triCode"]][0] + " ("
+                 + basicGameData["hTeam"]["win"] + "-"
+                 + basicGameData["hTeam"]["loss"] + ") - (" + dateTitle + ")")
+
+        return beforeGameBody, title
+    except:
+        return "", ""
+
+
+def boxScoreText(boxScoreData, bodyText, date, teamDict):
+    """
+    Variable boxScoreData have live data
+    Variable bodyText have body when the post was originally created
+    Variable date is today's date
+    Variable teamDict is the variable Dictionary at the top
+    Returns whole bodyText for editing
+    """
+    basicGameData = boxScoreData["basicGameData"]
+    allStats = boxScoreData["stats"]
+    vTeamBasicData = basicGameData["vTeam"]
+    hTeamBasicData = basicGameData["hTeam"]
+    nbaUrl = ("http://www.nba.com/games/" + date + "/"
+              + vTeamBasicData["triCode"]
+              + hTeamBasicData["triCode"] + "#/boxscore")
+    yahooUrl = ("http://sports.yahoo.com/nba/"
+                + teamDict[vTeamBasicData["triCode"]][2]
+                + teamDict[hTeamBasicData["triCode"]][2]
+                + date + teamDict[hTeamBasicData["triCode"]][1])
+    playerStats = allStats["activePlayers"]
+    body = bodyText + """
+||		
+|:-:|		
+|[](/{vTeamLogo}) **{vTeamScore} -  {hTeamScore}** [](/{hTeamLogo})|
+|**Box Scores: [NBA]({nbaurl}) & [Yahoo]({yahoourl})**|
+""".format(
+        vTeamLogo=vTeamBasicData["triCode"],
+        vTeamScore=vTeamBasicData["score"],
+        hTeamScore=hTeamBasicData["score"],
+        hTeamLogo=hTeamBasicData["triCode"],
+        nbaurl=nbaUrl,
+        yahoourl=yahooUrl
+    )
+
+    body += """
+
+||
+|:-:|											
+|&nbsp;|		
+|**GAME SUMMARY**|
+|**Location:** {arena}({attendance}), **Clock:** {clock}|
+|**Officials:** {referee1}, {referee2} and {referee3}|
+
+""".format(
+        arena=basicGameData["arena"]["name"],
+        attendance=basicGameData["attendance"],
+        clock=basicGameData["clock"],
+        referee1=basicGameData["officials"]["formatted"][0]["firstNameLastName"],
+        referee2=basicGameData["officials"]["formatted"][1]["firstNameLastName"],
+        referee3=basicGameData["officials"]["formatted"][2]["firstNameLastName"]
+    )
+
+    body += """|**Team**|**Q1**|**Q2**|**Q3**|**Q4**|**"""
+    # Condition for normal games
+    if len(vTeamBasicData["linescore"]) == 4:
+        body += """Total**|
+|:---|:--|:--|:--|:--|:--|
+|""" + teamDict[vTeamBasicData["triCode"]][0] + "|" + vTeamBasicData["linescore"][0]["score"] + "|" + \
+                vTeamBasicData["linescore"][1]["score"] + "|" + vTeamBasicData["linescore"][2][
+                    "score"] + "|" + vTeamBasicData["linescore"][3]["score"] + "|" + vTeamBasicData[
+                    "score"] + """|
+|""" + teamDict[hTeamBasicData["triCode"]][0] + "|" + hTeamBasicData["linescore"][0]["score"] + "|" + \
+                hTeamBasicData["linescore"][1]["score"] + "|" + hTeamBasicData["linescore"][2][
+                    "score"] + "|" + hTeamBasicData["linescore"][3]["score"] + "|" + hTeamBasicData[
+                    "score"] + "|\n"
+    # condition for OT game
+    elif len(vTeamBasicData["linescore"]) > 4:
+        # appending OT columns
+        for i in range(4, len(vTeamBasicData["linescore"])):
+            body += "OT" + str(i - 3) + "**|**"
+        body += """Total**|
+|:---|:--|:--|:--|:--|:--|"""
+        # increase string ":--|" according to number of OT
+        for i in range(4, len(vTeamBasicData["linescore"])):
+            body += ":--|"
+        body += "\n|" + teamDict[vTeamBasicData["triCode"]][0] + "|"
+        for i in range(len(vTeamBasicData["linescore"])):
+            body += vTeamBasicData["linescore"][i]["score"] + "|"
+        body += vTeamBasicData["score"] + """|
+|""" + teamDict[hTeamBasicData["triCode"]][0] + "|"
+        for i in range(len(hTeamBasicData["linescore"])):
+            body += hTeamBasicData["linescore"][i]["score"] + "|"
+        body += hTeamBasicData["score"] + "|\n"
+
+    body += """
+||		
+|:-:|		
+|&nbsp;|		
+|**TEAM STATS**|
+
+|**Team**|**PTS**|**FG**|**FG%**|**3P**|**3P%**|**FT**|**FT%**|**OREB**|**TREB**|**AST**|**PF**|**STL**|**TO**|**BLK**|
+|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|
+|{vTeamName}|{vpts}|{vfgm}-{vfga}|{vfgp}%|{vtpm}-{vtpa}|{vtpp}%|{vftm}-{vfta}|{vftp}%|{voreb}|{vtreb}|{vast}|{vpf}|{vstl}|{vto}|{vblk}|
+|{hTeamName}|{hpts}|{hfgm}-{hfga}|{hfgp}%|{htpm}-{htpa}|{htpp}%|{hftm}-{hfta}|{hftp}%|{horeb}|{htreb}|{hast}|{hpf}|{hstl}|{hto}|{hblk}|
+
+|**Team**|**Biggest Lead**|**Longest Run**|**PTS: In Paint**|**PTS: Off TOs**|**PTS: Fastbreak**|
+|:--|:--|:--|:--|:--|:--|
+|{vTeamName}|{vlead}|{vrun}|{vpaint}|{vpto}|{vfb}|
+|{hTeamName}|{hlead}|{hrun}|{hpaint}|{hpto}|{hfb}|
+""".format(
+        vTeamName=teamDict[vTeamBasicData["triCode"]][0],
+        vpts=allStats["vTeam"]["totals"]["points"],
+        vfgm=allStats["vTeam"]["totals"]["fgm"],
+        vfga=allStats["vTeam"]["totals"]["fga"],
+        vfgp=allStats["vTeam"]["totals"]["fgp"],
+        vtpm=allStats["vTeam"]["totals"]["tpm"],
+        vtpa=allStats["vTeam"]["totals"]["tpa"],
+        vtpp=allStats["vTeam"]["totals"]["tpp"],
+        vftm=allStats["vTeam"]["totals"]["ftm"],
+        vfta=allStats["vTeam"]["totals"]["fta"],
+        vftp=allStats["vTeam"]["totals"]["ftp"],
+        voreb=allStats["vTeam"]["totals"]["offReb"],
+        vtreb=allStats["vTeam"]["totals"]["totReb"],
+        vast=allStats["vTeam"]["totals"]["assists"],
+        vpf=allStats["vTeam"]["totals"]["pFouls"],
+        vstl=allStats["vTeam"]["totals"]["steals"],
+        vto=allStats["vTeam"]["totals"]["turnovers"],
+        vblk=allStats["vTeam"]["totals"]["blocks"],
+        hTeamName=teamDict[hTeamBasicData["triCode"]][0],
+        hpts=allStats["hTeam"]["totals"]["points"],
+        hfgm=allStats["hTeam"]["totals"]["fgm"],
+        hfga=allStats["hTeam"]["totals"]["fga"],
+        hfgp=allStats["hTeam"]["totals"]["fgp"],
+        htpm=allStats["hTeam"]["totals"]["tpm"],
+        htpa=allStats["hTeam"]["totals"]["tpa"],
+        htpp=allStats["hTeam"]["totals"]["tpp"],
+        hftm=allStats["hTeam"]["totals"]["ftm"],
+        hfta=allStats["hTeam"]["totals"]["fta"],
+        hftp=allStats["hTeam"]["totals"]["ftp"],
+        horeb=allStats["hTeam"]["totals"]["offReb"],
+        htreb=allStats["hTeam"]["totals"]["totReb"],
+        hast=allStats["hTeam"]["totals"]["assists"],
+        hpf=allStats["hTeam"]["totals"]["pFouls"],
+        hstl=allStats["hTeam"]["totals"]["steals"],
+        hto=allStats["hTeam"]["totals"]["turnovers"],
+        hblk=allStats["hTeam"]["totals"]["blocks"],
+        vlead=appendPlusMinus(allStats["vTeam"]["biggestLead"]),
+        vrun=allStats["vTeam"]["longestRun"],
+        vpaint=allStats["vTeam"]["pointsInPaint"],
+        vpto=allStats["vTeam"]["pointsOffTurnovers"],
+        vfb=allStats["vTeam"]["fastBreakPoints"],
+        hlead=appendPlusMinus(allStats["hTeam"]["biggestLead"]),
+        hrun=allStats["hTeam"]["longestRun"],
+        hpaint=allStats["hTeam"]["pointsInPaint"],
+        hpto=allStats["hTeam"]["pointsOffTurnovers"],
+        hfb=allStats["hTeam"]["fastBreakPoints"]
+    )
+
+    body += """
+||		
+|:-:|		
+|&nbsp;|		
+|**TEAM LEADERS**|
+
+|**Team**|**Points**|**Rebounds**|**Assists**|
+|:--|:--|:--|:--|
+|{vTeam}|**{vpts}** {vply1}|**{vreb}** {vply2}|**{vast}** {vply3}|
+|{hTeam}|**{hpts}** {hply1}|**{hreb}** {hply2}|**{hast}** {hply3}|
+""".format(
+        vTeam=teamDict[vTeamBasicData["triCode"]][0],
+        vpts=allStats["vTeam"]["leaders"]["points"]["value"],
+        vply1=allStats["vTeam"]["leaders"]["points"]["players"][0]["firstName"] + " " +
+              allStats["vTeam"]["leaders"]["points"]["players"][0]["lastName"],
+        vreb=allStats["vTeam"]["leaders"]["rebounds"]["value"],
+        vply2=allStats["vTeam"]["leaders"]["rebounds"]["players"][0]["firstName"] + " " +
+              allStats["vTeam"]["leaders"]["rebounds"]["players"][0]["lastName"],
+        vast=allStats["vTeam"]["leaders"]["assists"]["value"],
+        vply3=allStats["vTeam"]["leaders"]["assists"]["players"][0]["firstName"] + " " +
+              allStats["vTeam"]["leaders"]["assists"]["players"][0]["lastName"],
+        hTeam=teamDict[hTeamBasicData["triCode"]][0],
+        hpts=allStats["hTeam"]["leaders"]["points"]["value"],
+        hply1=allStats["hTeam"]["leaders"]["points"]["players"][0]["firstName"] + " " +
+              allStats["hTeam"]["leaders"]["points"]["players"][0]["lastName"],
+        hreb=allStats["hTeam"]["leaders"]["rebounds"]["value"],
+        hply2=allStats["hTeam"]["leaders"]["rebounds"]["players"][0]["firstName"] + " " +
+              allStats["hTeam"]["leaders"]["rebounds"]["players"][0]["lastName"],
+        hast=allStats["hTeam"]["leaders"]["assists"]["value"],
+        hply3=allStats["hTeam"]["leaders"]["assists"]["players"][0]["firstName"] + " " +
+              allStats["hTeam"]["leaders"]["assists"]["players"][0]["lastName"]
+    )
+
+    body += """
+||		
+|:-:|		
+|&nbsp;|		
+|**PLAYER STATS**|
+
+||||||||||||||||
+|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|
+**[](/{vTeamLogo}) {vTeamName}**|**MIN**|**FGM-A**|**3PM-A**|**FTM-A**|**ORB**|**DRB**|**REB**|**AST**|**STL**|**BLK**|**TO**|**PF**|**+/-**|**PTS**|
+""".format(
+        vTeamLogo=vTeamBasicData["triCode"],
+        vTeamName=teamDict[vTeamBasicData["triCode"]][0].rsplit(None, 1)[-1].upper()
+    )
+
+    # players stats are filled here, only starters have "pos" property (away team)
+    for i in range(len(playerStats)):
+        stats = playerStats[i]
+        if stats["teamId"] == vTeamBasicData["teamId"] and stats["pos"] != "":
+            body += "|{pname}^{pos}|{min}|{fgm}-{fga}|{tpm}-{tpa}|{ftm}-{fta}|{oreb}|{dreb}|{treb}|{ast}|{stl}|{blk}|{to}|{pf}|{pm}|{pts}|\n".format(
+                pname=stats["firstName"] + " " + stats["lastName"],
+                pos=stats["pos"],
+                min=stats["min"],
+                fgm=stats["fgm"],
+                fga=stats["fga"],
+                tpm=stats["tpm"],
+                tpa=stats["tpa"],
+                ftm=stats["ftm"],
+                fta=stats["fta"],
+                oreb=stats["offReb"],
+                dreb=stats["defReb"],
+                treb=stats["totReb"],
+                ast=stats["assists"],
+                stl=stats["steals"],
+                blk=stats["blocks"],
+                to=stats["turnovers"],
+                pf=stats["pFouls"],
+                pm=appendPlusMinus(stats["plusMinus"]),
+                pts=stats["points"]
+            )
+        elif stats["teamId"] == vTeamBasicData["teamId"]:
+            body += "|{pname}|{min}|{fgm}-{fga}|{tpm}-{tpa}|{ftm}-{fta}|{oreb}|{dreb}|{treb}|{ast}|{stl}|{blk}|{to}|{pf}|{pm}|{pts}|\n".format(
+                pname=stats["firstName"] + " " + stats["lastName"],
+                min=stats["min"],
+                fgm=stats["fgm"],
+                fga=stats["fga"],
+                tpm=stats["tpm"],
+                tpa=stats["tpa"],
+                ftm=stats["ftm"],
+                fta=stats["fta"],
+                oreb=stats["offReb"],
+                dreb=stats["defReb"],
+                treb=stats["totReb"],
+                ast=stats["assists"],
+                stl=stats["steals"],
+                blk=stats["blocks"],
+                to=stats["turnovers"],
+                pf=stats["pFouls"],
+                pm=appendPlusMinus(stats["plusMinus"]),
+                pts=stats["points"]
+            )
+    body += """**[](/{hTeamLogo}) {hTeamName}**|**MIN**|**FGM-A**|**3PM-A**|**FTM-A**|**ORB**|**DRB**|**REB**|**AST**|**STL**|**BLK**|**TO**|**PF**|**+/-**|**PTS**|
+""".format(
+        hTeamLogo=hTeamBasicData["triCode"],
+        hTeamName=teamDict[hTeamBasicData["triCode"]][0].rsplit(None, 1)[-1].upper()
+    )
+    # home team players
+    for i in range(len(playerStats)):
+        stats = playerStats[i]
+        if stats["teamId"] != vTeamBasicData["teamId"] and stats["pos"] != "":
+            body += "|{pname}^{pos}|{min}|{fgm}-{fga}|{tpm}-{tpa}|{ftm}-{fta}|{oreb}|{dreb}|{treb}|{ast}|{stl}|{blk}|{to}|{pf}|{pm}|{pts}|\n".format(
+                pname=stats["firstName"] + " " + stats["lastName"],
+                pos=stats["pos"],
+                min=stats["min"],
+                fgm=stats["fgm"],
+                fga=stats["fga"],
+                tpm=stats["tpm"],
+                tpa=stats["tpa"],
+                ftm=stats["ftm"],
+                fta=stats["fta"],
+                oreb=stats["offReb"],
+                dreb=stats["defReb"],
+                treb=stats["totReb"],
+                ast=stats["assists"],
+                stl=stats["steals"],
+                blk=stats["blocks"],
+                to=stats["turnovers"],
+                pf=stats["pFouls"],
+                pm=appendPlusMinus(stats["plusMinus"]),
+                pts=stats["points"]
+            )
+        elif playerStats[i]["teamId"] != vTeamBasicData["teamId"] and playerStats[i]["pos"] == "":
+            body += "|{pname}|{min}|{fgm}-{fga}|{tpm}-{tpa}|{ftm}-{fta}|{oreb}|{dreb}|{treb}|{ast}|{stl}|{blk}|{to}|{pf}|{pm}|{pts}|\n".format(
+                pname=stats["firstName"] + " " + stats["lastName"],
+                min=stats["min"],
+                fgm=stats["fgm"],
+                fga=stats["fga"],
+                tpm=stats["tpm"],
+                tpa=stats["tpa"],
+                ftm=stats["ftm"],
+                fta=stats["fta"],
+                oreb=stats["offReb"],
+                dreb=stats["defReb"],
+                treb=stats["totReb"],
+                ast=stats["assists"],
+                stl=stats["steals"],
+                blk=stats["blocks"],
+                to=stats["turnovers"],
+                pf=stats["pFouls"],
+                pm=appendPlusMinus(stats["plusMinus"]),
+                pts=stats["points"]
+            )
+    # footer
+    body += """
+
+||
+|:-:|
+|^[bot-script](https://github.com/f1uk3r/Some-Python-Scripts/blob/master/reddit-nba-bot/reddit-boxscore-bot.py) ^by ^/u/f1uk3r|  """
+    return body
+
